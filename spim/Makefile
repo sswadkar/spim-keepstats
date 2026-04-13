@@ -65,14 +65,18 @@ DOC_DIR = ../Documentation
 
 
 
-# Full path for the directory that will hold the executable files:
-BIN_DIR = $(DESTDIR)/usr/bin
+# Install prefix. Override with, for example:
+#   make install PREFIX=$$HOME/.local
+PREFIX ?= /usr/local
 
-# Full path for the directory that will hold the exception handler:
-EXCEPTION_DIR = $(DESTDIR)/usr/share/spim
+# Runtime install locations. DESTDIR is applied only when staging files.
+BIN_DIR ?= $(PREFIX)/bin
+EXCEPTION_DIR ?= $(PREFIX)/share/spim
+MAN_DIR ?= $(PREFIX)/share/man/man1
 
-# Full path for the directory that will hold the man files:
-MAN_DIR = $(DESTDIR)/usr/share/man/man1
+INSTALL_BIN_DIR = $(DESTDIR)$(BIN_DIR)
+INSTALL_EXCEPTION_DIR = $(DESTDIR)$(EXCEPTION_DIR)
+INSTALL_MAN_DIR = $(DESTDIR)$(MAN_DIR)
 
 
 # If you have flex, use it instead of lex.  If you use flex, define this
@@ -109,7 +113,7 @@ MEM_SIZES = -DTEXT_SIZE=65536 -DDATA_SIZE=131072 -DK_TEXT_SIZE=65536
 
 
 
-DEFINES = $(MEM_SIZES) -DDEFAULT_EXCEPTION_HANDLER="\"$(EXCEPTION_DIR)/exceptions.s\""
+DEFINES = $(MEM_SIZES)
 
 CC = g++
 CFLAGS += -I. -I$(CPU_DIR) $(DEFINES) -O -g -Wall -pedantic -Wextra -Wunused -Wno-write-strings -x c++
@@ -125,6 +129,10 @@ LEXCFLAGS += -O $(CFLAGS)
 
 OBJS = spim.o statistics.o spim-utils.o run.o mem.o inst.o data.o sym-tbl.o parser_yacc.o lex.yy.o \
        syscall.o display-utils.o string-stream.o
+
+BUILD_CONFIG = build-config.h
+
+.PHONY: spim test test_bare clean install install-man uninstall FORCE
 
 
 spim:   $(OBJS)
@@ -181,18 +189,32 @@ TAGS:	*.c *.h *.l *.y
 
 
 clean:
-	rm -f spim spim.exe *.o TAGS test.out lex.yy.c parser_yacc.c parser_yacc.h y.output
+	rm -f spim spim.exe *.o TAGS test.out lex.yy.c parser_yacc.c parser_yacc.h y.output $(BUILD_CONFIG)
 
 install: spim
-	install spim $(BIN_DIR)/spim
-	install -d $(EXCEPTION_DIR)
-	install -m 0444 $(CPU_DIR)/exceptions.s $(EXCEPTION_DIR)/exceptions.s
+	install -d $(INSTALL_BIN_DIR) $(INSTALL_EXCEPTION_DIR) $(INSTALL_MAN_DIR)
+	install spim $(INSTALL_BIN_DIR)/spim
+	install -m 0444 $(CPU_DIR)/exceptions.s $(INSTALL_EXCEPTION_DIR)/exceptions.s
+	install -m 0444 $(DOC_DIR)/spim.man $(INSTALL_MAN_DIR)/spim.1
 
 install-man:
-	install -m 0444 $(DOC_DIR)/spim.man $(MAN_DIR)
+	install -d $(INSTALL_MAN_DIR)
+	install -m 0444 $(DOC_DIR)/spim.man $(INSTALL_MAN_DIR)/spim.1
+
+uninstall:
+	rm -f $(INSTALL_BIN_DIR)/spim $(INSTALL_EXCEPTION_DIR)/exceptions.s $(INSTALL_MAN_DIR)/spim.1
 
 splint: spim
 	splint -weak -preproc -warnposix +matchanyintegral spim.c statistics.c parser_yacc.c lex.yy.c
+
+FORCE:
+
+$(BUILD_CONFIG): FORCE
+	@printf '#define DEFAULT_EXCEPTION_HANDLER "%s"\n' "$(EXCEPTION_DIR)/exceptions.s" > $@.tmp
+	@if ! cmp -s $@.tmp $@; then mv $@.tmp $@; else rm -f $@.tmp; fi
+
+spim.o: spim.c $(BUILD_CONFIG)
+	$(CC) $(CFLAGS) -include $(BUILD_CONFIG) -c spim.c
 
 
 

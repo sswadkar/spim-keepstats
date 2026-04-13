@@ -14,6 +14,9 @@ cd spim
 make
 sudo make install
 
+# or install as a user utility without sudo
+make install PREFIX=$HOME/.local
+
 
 (Note: There may be other dependencies, but I think you will at
 least need yacc and lex. Be sure to download these packages.)
