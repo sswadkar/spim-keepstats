@@ -11,11 +11,17 @@ BUILD
 =====
 
 cd spim
-make
-sudo make install
 
-# or install as a user utility without sudo
+# or install as a user utility without sudo (macos)
 make install PREFIX=$HOME/.local
+
+# or with sudo
+sudo make install PREFIX=/usr/local
+
+# on homebrew
+make install PREFIX=/opt/homebrew
+
+
 
 
 (Note: There may be other dependencies, but I think you will at
